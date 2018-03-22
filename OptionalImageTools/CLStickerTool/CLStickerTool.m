@@ -11,6 +11,7 @@
 
 static NSString* const kCLStickerToolStickerPathKey = @"stickerPath";
 static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
+static NSString* const kCLStickerToolAllowPanAndZoom = @"allowPanAndZoom";
 
 @interface _CLStickerView : UIView
 + (void)setActiveStickerView:(_CLStickerView*)view;
@@ -28,6 +29,8 @@ static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
     UIView *_workingView;
     
     UIScrollView *_menuScroll;
+    
+    Boolean _imageInteractionDefault;
 }
 
 + (NSArray*)subtools
@@ -62,6 +65,7 @@ static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
     return @{
              kCLStickerToolStickerPathKey:[self defaultStickerPath],
              kCLStickerToolDeleteIconName:@"",
+             kCLStickerToolAllowPanAndZoom:@NO
              };
 }
 
@@ -71,16 +75,25 @@ static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
 {
     _originalImage = self.editor.imageView.image;
     
-    [self.editor fixZoomScaleWithAnimated:YES];
+    if (![self.toolInfo.optionalInfo[kCLStickerToolAllowPanAndZoom] boolValue]) {
+        [self.editor fixZoomScaleWithAnimated:YES];
+    }
     
     _menuScroll = [[UIScrollView alloc] initWithFrame:self.editor.menuView.frame];
     _menuScroll.backgroundColor = self.editor.menuView.backgroundColor;
     _menuScroll.showsHorizontalScrollIndicator = NO;
     [self.editor.view addSubview:_menuScroll];
     
-    _workingView = [[UIView alloc] initWithFrame:[self.editor.view convertRect:self.editor.imageView.frame fromView:self.editor.imageView.superview]];
+    if ([self.toolInfo.optionalInfo[kCLStickerToolAllowPanAndZoom] boolValue]) {
+        _workingView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.editor.imageView.frame.size.width, self.editor.imageView.frame.size.height)];
+        [self.editor.imageView addSubview:_workingView];
+        _imageInteractionDefault = self.editor.imageView.userInteractionEnabled;
+        self.editor.imageView.userInteractionEnabled = YES;
+    } else {
+        _workingView = [[UIView alloc] initWithFrame:[self.editor.view convertRect:self.editor.imageView.frame fromView:self.editor.imageView.superview]];
+        [self.editor.view addSubview:_workingView];
+    }
     _workingView.clipsToBounds = YES;
-    [self.editor.view addSubview:_workingView];
     
     [self setStickerMenu];
     
@@ -93,7 +106,11 @@ static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
 
 - (void)cleanup
 {
-    [self.editor resetZoomScaleWithAnimated:YES];
+    if ([self.toolInfo.optionalInfo[kCLStickerToolAllowPanAndZoom] boolValue]) {
+        self.editor.imageView.userInteractionEnabled = _imageInteractionDefault;
+    } else {
+        [self.editor resetZoomScaleWithAnimated:YES];
+    }
     
     [_workingView removeFromSuperview];
     
@@ -240,7 +257,7 @@ static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
         [self addSubview:_imageView];
         
         _deleteButton = [UIButton buttonWithType:UIButtonTypeCustom];
-		
+        
         [_deleteButton setImage:[tool imageForKey:kCLStickerToolDeleteIconName defaultImageName:@"btn_delete.png"] forState:UIControlStateNormal];
         _deleteButton.frame = CGRectMake(0, 0, 32, 32);
         _deleteButton.center = _imageView.frame.origin;
@@ -259,17 +276,25 @@ static NSString* const kCLStickerToolDeleteIconName = @"deleteIconAssetsName";
         _scale = 1;
         _arg = 0;
         
-        [self initGestures];
+        [self initGestures:[tool.toolInfo.optionalInfo[kCLStickerToolAllowPanAndZoom] boolValue] usingScrollView: tool.editor.scrollView];
     }
     return self;
 }
 
-- (void)initGestures
+- (void)initGestures:(BOOL)allowPanZoom usingScrollView:(UIScrollView *)parentScrollView
 {
     _imageView.userInteractionEnabled = YES;
     [_imageView addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(viewDidTap:)]];
-    [_imageView addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(viewDidPan:)]];
-    [_circleView addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(circleViewDidPan:)]];
+    UIPanGestureRecognizer *viewPan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(viewDidPan:)];
+    [_imageView addGestureRecognizer:viewPan];
+    
+    UIPanGestureRecognizer *circlePan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(circleViewDidPan:)];
+    [_circleView addGestureRecognizer:circlePan];
+    
+    if (allowPanZoom) {
+        [parentScrollView.panGestureRecognizer requireGestureRecognizerToFail:viewPan];
+        [parentScrollView.panGestureRecognizer requireGestureRecognizerToFail:circlePan];
+    }
 }
 
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event

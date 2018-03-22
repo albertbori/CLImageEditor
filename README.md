@@ -220,6 +220,13 @@ CLImageToolInfo *tool = [editor.toolInfo subToolInfoWithToolName:@"CLStickerTool
 tool.optionalInfo[@"stickerPath"] = @"yourStickerPath";
 ```
 
+You can allow the image to be resized and scrollable while applying stickers (for increased precision).
+
+``` objc
+CLImageToolInfo *tool = [editor.toolInfo subToolInfoWithToolName:@"CLStickerTool" recursive:NO];
+tool.optionalInfo[@"allowPanAndZoom"] = @YES;
+```
+
 License
 ---
 CLImageEditor is released under the MIT License, see [LICENSE](LICENSE).
