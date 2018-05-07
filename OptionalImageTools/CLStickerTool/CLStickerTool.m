@@ -159,7 +159,7 @@ static NSString* const kCLStickerToolAllowPanAndZoom = @"allowPanAndZoom";
         UIImage *image = [UIImage imageWithContentsOfFile:filePath];
         if(image){
             CLToolbarMenuItem *view = [CLImageEditorTheme menuItemWithFrame:CGRectMake(x, 0, W, H) target:self action:@selector(tappedStickerPanel:) toolInfo:nil];
-            view.iconImage = [image aspectFit:CGSizeMake(50, 50)];
+            view.iconImage = image;
             view.userInfo = @{@"filePath" : filePath};
             view.iconImageContentMode = UIViewContentModeScaleAspectFit;
             
